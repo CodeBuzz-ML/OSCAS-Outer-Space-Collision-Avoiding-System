@@ -1,3 +1,5 @@
+
+
 /* This Code is written by CodeBuzz (Advait Muley)
    http://codebuzz.ml is my blog/website
 
@@ -12,6 +14,7 @@
   #include <Wire.h>
   #include <HCSR04.h>
   #include <Servo.h>
+  #include <SoftwareSerial.h>  
 
 // Define Ultrasonic Sensor Pin
   #define TrigPin  8
@@ -25,6 +28,15 @@
     byte Left[8] = {B00000, B00000, B10000, B01000, B00100, B11111, B11111, B00100};
   //Right Pointer
     byte Right[8] = {B00000, B00000, B00001, B00010, B00100, B11111, B11111, B00100}; 
+
+  //Prediction Characters
+    //Middle Prediction Character
+      byte predictMid[8] = {B00100, B01110, B11111, B00100, B00100, B00100, B00100, B00100};
+    //Left Prediction Character      
+      byte predictLeft[8] = {B00000, B00000, B00000, B11100, B11000, B10100, B00010, B00001};
+    //Right Prediction Character
+      byte predictRight[8] = {B00000, B00000, B00000, B00111, B00011, B00101, B01000, B10000};
+
     
 LiquidCrystal_I2C lcd(0x27,16,2); //LCD Display Initialization
 
@@ -63,6 +75,11 @@ void loop()
   lcd.createChar(1,Left); //Left symbol
   lcd.createChar(2,Right); //Right symbol
 
+  //Creating custom characters for the prediction symbols
+  lcd.createChar(3,predictMid); //Middle Prediction Character
+  lcd.createChar(4,predictLeft); //Left Prediction Character
+  lcd.createChar(5,predictRight); //Right Prediction Character
+
   //Creating a forever loop to execute the custom function MidProcess() that is created on line 74
   while(true)
   {     
@@ -74,6 +91,9 @@ void loop()
 void MidProcess()
 {
   /* This set of instructions controls all the modules when the servo is pointing on right*/
+  
+  
+  delay(1000);
   servo.write(45);   // Right Position 
   Right_Distance = distanceSensor.measureDistanceCm();
   lcd.clear();  //Clear the LCD screen just in case anything is alredy present
@@ -89,7 +109,8 @@ void MidProcess()
   
 
   /* This set of instructions controls all the modules when the servo is pointing on front*/     
-  servo.write(90);  // Front Positon 
+  delay(1000);
+  servo.write(90);  // Front Positon   
   Front_Distance = distanceSensor.measureDistanceCm();
   lcd.clear();  //Clear the LCD screen just in case anything is alredy present
   lcd.setCursor(0,0); //Set the cursor on column 0 and row 0 to write the next character on the LCD display
@@ -103,8 +124,8 @@ void MidProcess()
   delay(2000);  //A two second delay to make the LCD readable
 
 
-             
-  servo.write(135); // Left position of servo
+  delay(1000);          
+  servo.write(135); // Left position of servo  
   Left_Distance = distanceSensor.measureDistanceCm();  
   lcd.clear();  //Clear the LCD screen just in case anything is alredy present
   lcd.setCursor(0,0); //Set the cursor on column 0 and row 0 to write the next character on the LCD display
@@ -117,20 +138,48 @@ void MidProcess()
   lcd.print("CM");  //Print the string "CM"
   delay(2000);  //A two second delay to make the LCD readable       
 
-    
-  servo.write(90);  // back to front
-  Front_Distance = distanceSensor.measureDistanceCm();
-  lcd.clear();  //Clear the LCD screen just in case anything is alredy present
-  lcd.setCursor(0,0); //Set the cursor on column 0 and row 0 to write the next character on the LCD display
-  lcd.print(char(0)); //Print the custom symbol of Front Position
-  lcd.setCursor(3,0); //Leave one character space 
-  lcd.print("Distance");  //Shifting to the next line
-  lcd.setCursor(0,1); //Print the distance of the object on the front in CM
-  lcd.print(Front_Distance);  //Print the distance of the object on the front in CM
-  lcd.setCursor(14,1);  //Move to the end of the second line
-  lcd.print("CM");  //Print the string "CM"
-  delay(2000);  //A two second delay to make the LCD readable  
-}//Exit the code and loop it again
+  //Prediction Code 
+  int safeDirection;
+  
+  // 1 = Mid, 2 = Left, 3 = Right
 
+  if(Front_Distance > Left_Distance && Front_Distance > Right_Distance)
+  {
+    safeDirection = 1;
+  }
+  else if(Left_Distance > Front_Distance && Left_Distance > Right_Distance)
+  {
+    safeDirection = 2;
+  }
+  else if(Right_Distance > Front_Distance && Right_Distance > Left_Distance)
+  {
+    safeDirection = 3;
+  }
 
- 
+  //Printing Predicted Safe Direction
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Safest Direction");
+  lcd.setCursor(10,1);
+
+  if(safeDirection == 1)
+  {
+    lcd.print(char(3));
+    lcd.setCursor(0,1);
+    lcd.print("Middle");    
+  }
+  else if(safeDirection == 2)
+  {
+    lcd.print(char(4));    
+    lcd.setCursor(0,1);
+    lcd.print("Left");
+  }
+  else if(safeDirection == 3)
+  {
+    lcd.print(char(5));
+    lcd.setCursor(0,1);
+    lcd.print("Right");
+  }
+  delay(5000);
+}
+
